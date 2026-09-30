@@ -1,0 +1,78 @@
+x-app: &app
+  build: .
+  env_file: .env
+  environment:
+    APP_ENV: ${APP_ENV:-development}
+    DATABASE_URL: postgresql+psycopg2://studymate:studymate@postgres:5432/studymate
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    CELERY_RESULT_BACKEND: redis://redis:6379/2
+    UPLOAD_DIR: /app/var/uploads
+  volumes:
+    - uploads:/app/var/uploads
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  api:
+    <<: *app
+    command: >
+      sh -c "flask --app wsgi init-db && gunicorn -c gunicorn.conf.py wsgi:app"
+    expose:
+      - "8000"
+
+  worker:
+    <<: *app
+    command: celery -A worker.celery worker -Q ingest,default -l info --concurrency=4
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A worker.celery inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  beat:
+    <<: *app
+    command: celery -A worker.celery beat -l info
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: studymate
+      POSTGRES_PASSWORD: studymate
+      POSTGRES_DB: studymate
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studymate"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  uploads:

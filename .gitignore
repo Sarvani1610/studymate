@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+var/
+.pytest_cache/
+.coverage
+htmlcov/
+loadtest/results/run_*
+.terraform/
+*.tfstate*
+dump.rdb

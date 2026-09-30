@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudyMate</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1f2328; --muted: #6a6f76; --line: #e3e1da;
+    --accent: #2f5d50; --accent-soft: #e4eee9; --warn: #9a3b2e; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16181b; --panel: #1f2226; --ink: #e8e6e1; --muted: #9aa0a6; --line: #30343a;
+            --accent: #7fb8a4; --accent-soft: #24332e; --warn: #e08a7d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+  header .spacer { flex: 1; }
+  main { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 53px); }
+  aside { border-right: 1px solid var(--line); padding: 16px; background: var(--panel); }
+  section.view { padding: 20px 24px; max-width: 980px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  h3 { font-size: 14px; margin: 18px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  input, select, textarea, button { font: inherit; color: inherit; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  button { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .stack > * + * { margin-top: 8px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .error { color: var(--warn); font-size: 13px; min-height: 18px; }
+  .course { padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+  .course.active, .course:hover { background: var(--accent-soft); }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .tabs button { background: none; border: none; color: var(--muted); border-bottom: 2px solid transparent; border-radius: 0; }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
+  .pill { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+  .pill.failed { background: #f6dcd8; color: var(--warn); }
+  .chat { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+  .msg { padding: 10px 14px; border-radius: var(--radius); max-width: 88%; white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
+  .msg.assistant { align-self: flex-start; background: var(--panel); border: 1px solid var(--line); }
+  .cites { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .cites div { margin-top: 2px; }
+  .flash { text-align: center; padding: 36px 20px; font-size: 18px; }
+  .options label { display: block; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin-top: 6px; cursor: pointer; }
+  .options label.right { border-color: var(--accent); background: var(--accent-soft); }
+  .options label.wrong { border-color: var(--warn); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+  .stat b { display: block; font-size: 22px; }
+  .guide h1, .guide h2, .guide h3 { text-transform: none; color: var(--ink); letter-spacing: 0; }
+  .guide table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .guide td, .guide th { border: 1px solid var(--line); padding: 6px; text-align: left; vertical-align: top; }
+  .hidden { display: none !important; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } aside { border-right: none; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>StudyMate</h1>
+  <span class="muted" id="who"></span>
+  <span class="spacer"></span>
+  <button class="ghost hidden" id="logoutBtn">Log out</button>
+</header>
+
+<div id="authView" class="view" style="max-width:380px;margin:60px auto;padding:0 16px">
+  <div class="card stack">
+    <h2 id="authTitle">Log in</h2>
+    <input id="name" placeholder="Name" class="hidden">
+    <input id="email" placeholder="Email" type="email" autocomplete="username">
+    <input id="password" placeholder="Password" type="password" autocomplete="current-password">
+    <div class="error" id="authError"></div>
+    <div class="row"><button id="authBtn">Log in</button><button class="ghost" id="toggleAuth">Create an account</button></div>
+  </div>
+</div>
+
+<main id="appView" class="hidden">
+  <aside>
+    <h3 style="margin-top:0">Courses</h3>
+    <div id="courses"></div>
+    <div class="stack" style="margin-top:14px">
+      <input id="newCode" placeholder="Code, e.g. CS2028">
+      <input id="newName" placeholder="Course name">
+      <button id="addCourse">Add course</button>
+      <div class="error" id="courseError"></div>
+    </div>
+  </aside>
+
+  <section class="view">
+    <div id="empty" class="muted">Pick or add a course to get started.</div>
+    <div id="coursePane" class="hidden">
+      <div class="tabs" id="tabs">
+        <button data-tab="docs" class="on">Material</button>
+        <button data-tab="chat">Ask</button>
+        <button data-tab="cards">Flashcards</button>
+        <button data-tab="quiz">Quiz</button>
+        <button data-tab="guide">Study guide</button>
+        <button data-tab="stats">Progress</button>
+      </div>
+
+      <div data-pane="docs">
+        <div class="card row">
+          <input type="file" id="file" accept=".pdf,.docx,.pptx,.txt,.md">
+          <button id="uploadBtn">Upload</button>
+        </div>
+        <div class="error" id="uploadError"></div>
+        <div id="docs" class="stack"></div>
+      </div>
+
+      <div data-pane="chat" class="hidden">
+        <div class="chat" id="chat"></div>
+        <div class="row">
+          <input id="question" placeholder="Ask something about your course material">
+          <button id="askBtn">Ask</button>
+        </div>
+        <div class="error" id="chatError"></div>
+      </div>
+
+      <div data-pane="cards" class="hidden">
+        <div class="row" style="margin-bottom:12px">
+          <button id="genCards">Generate 10 cards</button>
+          <span class="muted" id="dueCount"></span>
+        </div>
+        <div class="card flash" id="flash"><span class="muted">No cards due.</span></div>
+        <div class="row hidden" id="showRow" style="justify-content:center;margin-top:10px"><button id="showBack">Show answer</button></div>
+        <div class="row hidden" id="rateRow" style="justify-content:center;margin-top:10px"></div>
+      </div>
+
+      <div data-pane="quiz" class="hidden">
+        <div class="row" style="margin-bottom:12px">
+          <select id="difficulty" style="width:auto"><option>easy</option><option selected>medium</option><option>hard</option></select>
+          <label class="muted row" style="width:auto"><input type="checkbox" id="adaptive" style="width:auto"> focus on weak topics</label>
+          <button id="newQuiz">New quiz</button>
+        </div>
+        <div id="quiz" class="stack"></div>
+      </div>
+
+      <div data-pane="guide" class="hidden">
+        <div class="row" style="margin-bottom:12px">
+          <input type="date" id="examDate" style="width:auto">
+          <input type="number" id="hours" value="2" min="0.5" max="12" step="0.5" style="width:90px">
+          <span class="muted">hours a day</span>
+          <button id="makeGuide">Build guide</button>
+        </div>
+        <div class="card guide" id="guide"><span class="muted">Your guide will show up here.</span></div>
+      </div>
+
+      <div data-pane="stats" class="hidden"><div id="stats"></div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const state = { token: localStorageSafe("get", "sm_token"), course: null, session: null, cards: [], cardIndex: 0, quiz: null };
+const $ = (id) => document.getElementById(id);
+
+function localStorageSafe(op, key, value) {
+  try {
+    if (op === "get") return localStorage.getItem(key);
+    if (op === "set") localStorage.setItem(key, value);
+    if (op === "del") localStorage.removeItem(key);
+  } catch (e) { return null; }
+}
+
+async function api(path, opts = {}) {
+  const headers = opts.headers || {};
+  if (state.token) headers["Authorization"] = "Bearer " + state.token;
+  if (opts.json !== undefined) { headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(opts.json); }
+  const resp = await fetch(path, { ...opts, headers });
+  if (resp.status === 204) return null;
+  const data = await resp.json().catch(() => ({}));
+  if (resp.status === 401 && state.token) { logout(); }
+  if (!resp.ok) throw new Error((data.error && data.error.message) || resp.statusText);
+  return data;
+}
+
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+// ---------------------------------------------------------------- auth
+let registering = false;
+$("toggleAuth").onclick = () => {
+  registering = !registering;
+  $("name").classList.toggle("hidden", !registering);
+  $("authTitle").textContent = registering ? "Create an account" : "Log in";
+  $("authBtn").textContent = registering ? "Sign up" : "Log in";
+  $("toggleAuth").textContent = registering ? "I already have an account" : "Create an account";
+};
+$("authBtn").onclick = async () => {
+  $("authError").textContent = "";
+  try {
+    const body = { email: $("email").value, password: $("password").value };
+    if (registering) body.display_name = $("name").value || "Student";
+    const data = await api(registering ? "/api/auth/register" : "/api/auth/login", { method: "POST", json: body });
+    state.token = data.access_token;
+    localStorageSafe("set", "sm_token", state.token);
+    boot();
+  } catch (e) { $("authError").textContent = e.message; }
+};
+$("logoutBtn").onclick = () => { api("/api/auth/logout", { method: "POST", json: {} }).catch(() => {}); logout(); };
+function logout() {
+  state.token = null; localStorageSafe("del", "sm_token");
+  $("appView").classList.add("hidden"); $("authView").classList.remove("hidden"); $("logoutBtn").classList.add("hidden"); $("who").textContent = "";
+}
+
+// ---------------------------------------------------------------- courses
+async function loadCourses() {
+  const data = await api("/api/courses?per_page=100");
+  $("courses").innerHTML = data.items.map(c =>
+    `<div class="course ${state.course && state.course.id === c.id ? "active" : ""}" data-id="${c.id}">
+       <div>${esc(c.code)}</div><div class="muted">${esc(c.name)} &middot; ${c.ready_documents} docs</div></div>`).join("")
+    || `<div class="muted">No courses yet.</div>`;
+  document.querySelectorAll(".course").forEach(el => el.onclick = () => selectCourse(data.items.find(c => c.id == el.dataset.id)));
+}
+$("addCourse").onclick = async () => {
+  $("courseError").textContent = "";
+  try {
+    const data = await api("/api/courses", { method: "POST", json: { code: $("newCode").value, name: $("newName").value } });
+    $("newCode").value = $("newName").value = "";
+    await loadCourses(); selectCourse(data.course);
+  } catch (e) { $("courseError").textContent = e.message; }
+};
+function selectCourse(course) {
+  state.course = course; state.session = null;
+  $("empty").classList.add("hidden"); $("coursePane").classList.remove("hidden");
+  $("chat").innerHTML = ""; $("quiz").innerHTML = "";
+  loadCourses(); showTab("docs");
+}
+
+// ---------------------------------------------------------------- tabs
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(name) {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("[data-pane]").forEach(p => p.classList.toggle("hidden", p.dataset.pane !== name));
+  ({ docs: loadDocs, cards: loadCards, stats: loadStats }[name] || (() => {}))();
+}
+
+// ---------------------------------------------------------------- documents
+async function loadDocs() {
+  const data = await api(`/api/courses/${state.course.id}/documents?per_page=100`);
+  $("docs").innerHTML = data.items.map(d => `
+    <div class="card row">
+      <div style="flex:1"><div>${esc(d.title)}</div>
+        <div class="muted">${esc(d.filename)} &middot; ${d.chunk_count} chunks${d.page_count ? " &middot; " + d.page_count + " pages" : ""}${d.error ? " &middot; " + esc(d.error) : ""}</div></div>
+      <span class="pill ${d.status === "failed" ? "failed" : ""}">${d.status}</span>
+      <button class="ghost" data-sum="${d.id}" ${d.status !== "ready" ? "disabled" : ""}>Summary</button>
+    </div><div class="card hidden" id="sum-${d.id}"></div>`).join("") || `<div class="muted">Upload lecture notes, slides or readings.</div>`;
+  document.querySelectorAll("[data-sum]").forEach(b => b.onclick = async () => {
+    const box = $("sum-" + b.dataset.sum);
+    box.classList.remove("hidden"); box.textContent = "Summarizing...";
+    try { box.textContent = (await api(`/api/documents/${b.dataset.sum}/summary?style=bullets`)).summary.content; }
+    catch (e) { box.textContent = e.message; }
+  });
+  if (data.items.some(d => d.status === "pending" || d.status === "processing")) setTimeout(loadDocs, 2000);
+}
+$("uploadBtn").onclick = async () => {
+  const file = $("file").files[0];
+  $("uploadError").textContent = "";
+  if (!file) { $("uploadError").textContent = "Choose a file first."; return; }
+  const form = new FormData(); form.append("file", file);
+  $("uploadBtn").disabled = true;
+  try { await api(`/api/courses/${state.course.id}/documents`, { method: "POST", body: form }); $("file").value = ""; }
+  catch (e) { $("uploadError").textContent = e.message; }
+  $("uploadBtn").disabled = false; loadDocs(); loadCourses();
+};
+
+// ---------------------------------------------------------------- chat (streamed)
+function addMsg(role, text) {
+  const el = document.createElement("div");
+  el.className = "msg " + role; el.textContent = text;
+  $("chat").appendChild(el); el.scrollIntoView({ block: "end" });
+  return el;
+}
+function renderCites(el, cites) {
+  if (!cites || !cites.length) return;
+  const box = document.createElement("div"); box.className = "cites";
+  box.innerHTML = cites.map(c => `<div>[${c.marker}] ${esc(c.filename)}${c.page ? ", page " + c.page : ""}${c.section ? " &middot; " + esc(c.section) : ""}</div>`).join("");
+  el.appendChild(box);
+}
+async function ask() {
+  const q = $("question").value.trim();
+  if (!q) return;
+  $("chatError").textContent = ""; $("question").value = ""; $("askBtn").disabled = true;
+  try {
+    if (!state.session) state.session = (await api(`/api/courses/${state.course.id}/sessions`, { method: "POST", json: {} })).session;
+    addMsg("user", q);
+    const bubble = addMsg("assistant", "");
+    const resp = await fetch(`/api/sessions/${state.session.id}/stream`, {
+      method: "POST", headers: { "Authorization": "Bearer " + state.token, "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q }),
+    });
+    if (!resp.ok) { const d = await resp.json(); throw new Error(d.error.message); }
+    const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let cut;
+      while ((cut = buffer.indexOf("\n\n")) >= 0) {
+        const block = buffer.slice(0, cut); buffer = buffer.slice(cut + 2);
+        const event = (block.match(/^event: (.*)$/m) || [])[1];
+        const data = JSON.parse((block.match(/^data: (.*)$/m) || [])[1] || "{}");
+        if (event === "token") { bubble.textContent += data.t; bubble.scrollIntoView({ block: "end" }); }
+        if (event === "done") { bubble.textContent = data.message.content; renderCites(bubble, data.message.citations); }
+        if (event === "error") { bubble.textContent = data.message; }
+      }
+    }
+  } catch (e) { $("chatError").textContent = e.message; }
+  $("askBtn").disabled = false;
+}
+$("askBtn").onclick = ask;
+$("question").addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
+
+// ---------------------------------------------------------------- flashcards
+async function loadCards() {
+  const data = await api(`/api/flashcards/review?course_id=${state.course.id}&limit=50`);
+  state.cards = data.cards; state.cardIndex = 0;
+  $("dueCount").textContent = `${data.total_due} due`;
+  showCard();
+}
+function showCard() {
+  const card = state.cards[state.cardIndex];
+  $("rateRow").classList.add("hidden");
+  if (!card) { $("flash").innerHTML = `<span class="muted">No cards due. Nice work.</span>`; $("showRow").classList.add("hidden"); return; }
+  $("flash").innerHTML = `<div>${esc(card.front)}</div><div class="muted" style="margin-top:6px">${esc(card.topic || "")}</div>`;
+  $("showRow").classList.remove("hidden");
+  $("rateRow").innerHTML = ["again", "hard", "good", "easy"].map(r =>
+    `<button class="${r === "good" ? "" : "ghost"}" data-rate="${r}">${r} <span class="muted">${card.buttons[r]}</span></button>`).join("");
+  document.querySelectorAll("[data-rate]").forEach(b => b.onclick = async () => {
+    await api(`/api/flashcards/${card.id}/review`, { method: "POST", json: { rating: b.dataset.rate } });
+    state.cardIndex += 1; showCard();
+  });
+}
+$("showBack").onclick = () => {
+  const card = state.cards[state.cardIndex];
+  $("flash").innerHTML += `<hr style="border:none;border-top:1px solid var(--line);margin:16px 0"><div>${esc(card.back)}</div>`;
+  $("showRow").classList.add("hidden"); $("rateRow").classList.remove("hidden");
+};
+$("genCards").onclick = async () => {
+  $("genCards").disabled = true;
+  try { await api(`/api/courses/${state.course.id}/flashcards/generate`, { method: "POST", json: { count: 10 } }); }
+  catch (e) { $("flash").textContent = e.message; }
+  $("genCards").disabled = false; loadCards();
+};
+
+// ---------------------------------------------------------------- quiz
+$("newQuiz").onclick = async () => {
+  $("quiz").innerHTML = `<span class="muted">Writing questions...</span>`;
+  try {
+    const data = await api(`/api/courses/${state.course.id}/quizzes`, { method: "POST",
+      json: { count: 5, difficulty: $("difficulty").value, adaptive: $("adaptive").checked } });
+    state.quiz = data.quiz; renderQuiz();
+  } catch (e) { $("quiz").textContent = e.message; }
+};
+function renderQuiz(result) {
+  const byId = {}; (result ? result.breakdown : []).forEach(r => byId[r.question_id] = r);
+  $("quiz").innerHTML = state.quiz.questions.map(q => {
+    const r = byId[q.id];
+    return `<div class="card"><div>${q.id + 1}. ${esc(q.question)}</div><div class="options">` +
+      q.options.map((o, i) => {
+        let cls = "";
+        if (r) cls = i === r.answer_index ? "right" : (i === r.choice ? "wrong" : "");
+        return `<label class="${cls}"><input type="radio" name="q${q.id}" value="${i}" style="width:auto" ${r ? "disabled" : ""} ${r && r.choice === i ? "checked" : ""}> ${esc(o)}</label>`;
+      }).join("") + `</div>${r && r.explanation ? `<div class="muted" style="margin-top:8px">${esc(r.explanation)}</div>` : ""}</div>`;
+  }).join("") + (result
+    ? `<div class="card"><b>${result.score} / ${result.total}</b> <span class="muted">(${result.percent}%)</span></div>`
+    : `<button id="submitQuiz">Submit</button>`);
+  if (!result) $("submitQuiz").onclick = submitQuiz;
+}
+async function submitQuiz() {
+  const answers = state.quiz.questions.map(q => {
+    const picked = document.querySelector(`input[name=q${q.id}]:checked`);
+    return { question_id: q.id, choice: picked ? Number(picked.value) : null };
+  });
+  const data = await api(`/api/quizzes/${state.quiz.id}/attempts`, { method: "POST", json: { answers } });
+  renderQuiz(data.attempt);
+}
+
+// ---------------------------------------------------------------- study guide
+function miniMarkdown(md) {
+  const lines = esc(md).split("\n"); let html = ""; let inTable = false;
+  for (const line of lines) {
+    if (line.startsWith("|")) {
+      if (/^\|[-| ]+\|$/.test(line)) continue;
+      if (!inTable) { html += "<table>"; inTable = true; }
+      html += "<tr>" + line.slice(1, -1).split("|").map(c => `<td>${c.trim()}</td>`).join("") + "</tr>"; continue;
+    }
+    if (inTable) { html += "</table>"; inTable = false; }
+    if (line.startsWith("### ")) html += `<h3>${line.slice(4)}</h3>`;
+    else if (line.startsWith("## ")) html += `<h2>${line.slice(3)}</h2>`;
+    else if (line.startsWith("# ")) html += `<h2>${line.slice(2)}</h2>`;
+    else if (line.startsWith("- ")) html += `<div style="padding-left:14px;text-indent:-12px">&bull; ${line.slice(2)}</div>`;
+    else if (line.trim()) html += `<p>${line}</p>`;
+  }
+  if (inTable) html += "</table>";
+  return html.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+}
+$("makeGuide").onclick = async () => {
+  $("guide").innerHTML = `<span class="muted">Building your guide...</span>`;
+  try {
+    const body = { hours_per_day: Number($("hours").value) || 2 };
+    if ($("examDate").value) body.exam_date = $("examDate").value;
+    const data = await api(`/api/courses/${state.course.id}/study-guides`, { method: "POST", json: body });
+    $("guide").innerHTML = miniMarkdown(data.study_guide.content);
+  } catch (e) { $("guide").textContent = e.message; }
+};
+
+// ---------------------------------------------------------------- stats
+async function loadStats() {
+  const s = await api(`/api/me/stats?course_id=${state.course.id}`);
+  const tile = (label, value) => `<div class="card stat"><b>${value ?? "-"}</b><span class="muted">${label}</span></div>`;
+  $("stats").innerHTML = `<div class="grid">
+      ${tile("day streak", s.streak_days)}${tile("questions this week", s.questions_last_7_days)}
+      ${tile("cards due", s.flashcards.due)}${tile("quiz average %", s.quizzes.average_percent)}
+      ${tile("documents ready", s.documents.ready)}${tile("AI tokens left today", s.token_quota.remaining)}
+    </div>
+    <h3>Weakest topics</h3>
+    ${s.weakest_topics.map(t => `<div class="card row"><span style="flex:1">${esc(t.topic)}</span><span class="muted">${Math.round(t.accuracy * 100)}% over ${t.attempts}</span></div>`).join("") || `<div class="muted">Take a quiz to see this.</div>`}`;
+}
+
+// ---------------------------------------------------------------- boot
+async function boot() {
+  if (!state.token) return;
+  try {
+    const me = await api("/api/auth/me");
+    $("who").textContent = me.user.display_name;
+    $("authView").classList.add("hidden"); $("appView").classList.remove("hidden"); $("logoutBtn").classList.remove("hidden");
+    loadCourses();
+  } catch (e) { logout(); }
+}
+boot();
+</script>
+</body>
+</html>

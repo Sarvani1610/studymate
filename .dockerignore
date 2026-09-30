@@ -1,0 +1,9 @@
+.git
+.venv
+__pycache__
+*.pyc
+.env
+var/
+tests/
+loadtest/results/
+deploy/terraform/.terraform

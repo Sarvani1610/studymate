@@ -2,7 +2,6 @@
 
 A study platform for university courses. Students upload their lecture notes, slides and readings, then ask questions about them, get summaries, generate flashcards and quizzes, and build a study plan for an upcoming exam. Every answer is grounded in the uploaded material and cites the file and page it came from.
 
-I built this over the fall 2025 semester to learn how retrieval augmented generation holds up outside of a notebook: with real file formats, many concurrent users, caching, rate limits and a deployment on AWS.
 
 ## What it does
 
